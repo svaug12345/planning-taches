@@ -1,0 +1,15 @@
+# .gitignore Web / Node.js
+# node_modules : les bibliothèques téléchargées par « npm install » (très lourd,
+# se réinstalle en une commande grâce à package.json)
+node_modules/
+.next/
+out/
+dist/
+build/
+.vercel/
+
+# Fichiers de secrets (clés d'API…)
+.env*
+
+Thumbs.db
+desktop.ini

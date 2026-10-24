@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planning des Tâches Familiales</title>
+  <!-- Tailwind CSS pour un design soigné et réactif -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Polices Google Fonts douces et modernes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #f8fafc;
+    }
+
+    /* Mise en valeur ultra-visible du jour actuel */
+    .today-highlight {
+      position: relative;
+      border: 2.5px solid #4f46e5 !important;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25), 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+      background: linear-gradient(to bottom right, #ffffff, #eef2ff) !important;
+    }
+
+    /* Styles d'impression ultra-optimisés pour maximiser la place sur 1 seule page A4 Paysage */
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 3mm 5mm 3mm 5mm;
+      }
+
+      html, body {
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        overflow: hidden !important;
+        font-size: 8.5px !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      .print-only {
+        display: flex !important;
+      }
+
+      main {
+        max-width: 100% !important;
+        width: 100% !important;
+        height: calc(100vh - 12mm) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+
+      #viewCalendar {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100% !important;
+        gap: 2px !important;
+      }
+
+      #viewMobileToday,
+      #viewMobileAgenda {
+        display: none !important;
+      }
+
+      #weekDaysHeader {
+        gap: 2px !important;
+        margin-bottom: 2px !important;
+      }
+
+      #weekDaysHeader > div {
+        padding: 2px 0 !important;
+        font-size: 9px !important;
+        font-weight: 800 !important;
+      }
+
+      #calendarGrid {
+        flex: 1 1 0% !important;
+        height: 100% !important;
+        display: grid !important;
+        grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+        grid-auto-rows: 1fr !important;
+        gap: 2px !important;
+      }
+
+      .cal-cell {
+        min-height: 0 !important;
+        height: 100% !important;
+        padding: 2px 3px !important;
+        border-width: 1px !important;
+        border-color: #cbd5e1 !important;
+        border-radius: 4px !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      .cal-cell-header {
+        margin-bottom: 1px !important;
+        padding-bottom: 1px !important;
+        font-size: 9px !important;
+        font-weight: 800 !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+      }
+
+      .cal-cell-content {
+        overflow: hidden !important;
+        gap: 1.5px !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+
+      .cal-task-item {
+        padding: 1.5px 3px !important;
+        font-size: 8px !important;
+        line-height: 1.15 !important;
+        border-radius: 3px !important;
+        border-width: 1px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        box-shadow: none !important;
+      }
+      
+      .today-highlight {
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+      }
+
+      .today-badge {
+        display: none !important;
+      }
+    }
+
+    .print-only {
+      display: none;
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+  <!-- En-tête : Épuré, ergonomique sur mobile et desktop -->
+  <header class="no-print bg-white border-b border-slate-200 py-2 px-3 sm:px-5 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
+      
+      <!-- Sélecteur de mois & Raccourci "Aujourd'hui" -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="relative">
+          <select id="monthSelect" onchange="changeMonth(this.value)" class="appearance-none bg-slate-100 hover:bg-slate-200 text-slate-900 font-extrabold text-xs sm:text-sm rounded-lg pl-2.5 pr-7 py-1.5 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+            <!-- Rempli en JS -->
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-500">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </div>
+        </div>
+
+        <!-- Bouton de saut direct au jour actuel -->
+        <button id="btnJumpToday" onclick="handleJumpTodayClick()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-2.5 py-1.5 rounded-lg border border-indigo-200 transition-colors flex items-center gap-1 active:scale-95" title="Aller à aujourd'hui">
+          <span>📍</span>
+          <span class="hidden xs:inline">Aujourd'hui</span>
+        </button>
+
+        <!-- Bascule Agenda (par défaut sur smartphone) / Mois -->
+        <div class="sm:hidden flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px] font-bold">
+          <button id="btnMobList" onclick="setMobileMode('agenda')" class="px-2.5 py-1 rounded-md bg-white text-indigo-600 shadow-xs font-bold transition-all">Agenda</button>
+          <button id="btnMobCal" onclick="setMobileMode('grid')" class="px-2.5 py-1 rounded-md text-slate-600 font-semibold transition-all">Mois</button>
+        </div>
+
+        <!-- Légende des enfants pour grand écran -->
+        <div id="screenLegend" class="hidden md:flex items-center gap-2 text-xs font-semibold ml-2">
+          <!-- Injecté dynamiquement -->
+        </div>
+      </div>
+
+      <!-- Actions directes : Imprimer & Actualiser -->
+      <div class="flex items-center gap-1.5">
+        <button onclick="window.print()" title="Imprimer le calendrier du mois (A4 Paysage)" aria-label="Imprimer le mois" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white p-2 rounded-lg shadow-xs transition-all flex items-center justify-center cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        </button>
+
+        <button onclick="refreshData()" title="Recharger depuis le Google Sheet" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors">
+          <svg class="w-4 h-4" id="refreshIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Toast discrète -->
+  <div id="statusToast" class="fixed bottom-3 right-3 z-50 transform translate-y-12 opacity-0 pointer-events-none transition-all duration-300 bg-slate-900/90 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-lg flex items-center gap-2">
+    <span id="statusToastMsg"></span>
+  </div>
+
+  <!-- Contenu Principal -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-1.5 sm:p-3">
+
+    <!-- 1. VUE CALENDRIER GRILLE (Grand écran ou basculé sur mobile) -->
+    <div id="viewCalendar" class="space-y-1.5">
+      
+      <!-- Grille des jours de la semaine (Lun - Dim) -->
+      <div id="weekDaysHeader" class="grid grid-cols-7 gap-1 sm:gap-2 text-center font-bold text-xs text-slate-600 uppercase tracking-wider">
+        <div class="py-1 bg-white rounded-lg border border-slate-200 shadow-2xs">Lun</div>
+        <div class="py-1 bg-white rounded-lg border border-slate-200 shadow-2xs">Mar</div>
+        <div class="py-1 bg-white rounded-lg border border-slate-200 shadow-2xs">Mer</div>
+        <div class="py-1 bg-white rounded-lg border border-slate-200 shadow-2xs">Jeu</div>
+        <div class="py-1 bg-white rounded-lg border border-slate-200 shadow-2xs">Ven</div>
+        <div class="py-1 bg-amber-50 text-amber-800 rounded-lg border border-amber-200 shadow-2xs">Sam</div>
+        <div class="py-1 bg-amber-50 text-amber-800 rounded-lg border border-amber-200 shadow-2xs">Dim</div>
+      </div>
+
+      <!-- Grille mensuelle des jours -->
+      <div id="calendarGrid" class="grid grid-cols-7 gap-1 sm:gap-2 auto-rows-fr">
+        <!-- Généré dynamiquement en JS -->
+      </div>
+    </div>
+
+    <!-- 2. VUE AGENDA MOBILE (Affichée par défaut sur smartphone avec scroll sur Aujourd'hui) -->
+    <div id="viewMobileAgenda" class="space-y-2.5 pb-8">
+      <!-- Rempli dynamiquement en JS -->
+    </div>
+
+  </main>
+
+  <!-- Pied de page -->
+  <footer class="no-print mt-auto border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
+      <p>Synchronisé avec le classeur Google Sheets • Onglet <strong>BDD</strong></p>
+      <p class="text-slate-400">Planning prêt pour affichage et impression A4</p>
+    </div>
+  </footer>
+
+  <script>
+    /**
+     * PALETTE DE COULEURS ÉLÉGANTES ET DISTINCTES PAR ENFANT
+     */
+    const CHILD_COLORS = {
+      'Gaby': {
+        name: 'Gaby',
+        bg: 'bg-emerald-50',
+        border: 'border-emerald-200',
+        text: 'text-emerald-800',
+        badge: 'bg-emerald-600 text-white',
+        ring: 'focus:ring-emerald-400',
+        hex: '#059669',
+        avatarBg: 'bg-emerald-100 text-emerald-800'
+      },
+      'Tom': {
+        name: 'Tom',
+        bg: 'bg-blue-50',
+        border: 'border-blue-200',
+        text: 'text-blue-800',
+        badge: 'bg-blue-600 text-white',
+        ring: 'focus:ring-blue-400',
+        hex: '#2563eb',
+        avatarBg: 'bg-blue-100 text-blue-800'
+      },
+      'Nanon': {
+        name: 'Nanon',
+        bg: 'bg-rose-50',
+        border: 'border-rose-200',
+        text: 'text-rose-800',
+        badge: 'bg-rose-600 text-white',
+        ring: 'focus:ring-rose-400',
+        hex: '#e11d48',
+        avatarBg: 'bg-rose-100 text-rose-800'
+      }
+    };
+
+    const FALLBACK_PALETTES = [
+      { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', badge: 'bg-purple-600 text-white', hex: '#9333ea', avatarBg: 'bg-purple-100 text-purple-800' },
+      { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800', badge: 'bg-amber-600 text-white', hex: '#d97706', avatarBg: 'bg-amber-100 text-amber-800' },
+      { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-800', badge: 'bg-cyan-600 text-white', hex: '#0891b2', avatarBg: 'bg-cyan-100 text-cyan-800' }
+    ];
+
+    function getChildStyle(name) {
+      if (!name) return { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', badge: 'bg-slate-600 text-white', hex: '#64748b', avatarBg: 'bg-slate-100 text-slate-700' };
+      if (CHILD_COLORS[name]) return CHILD_COLORS[name];
+      
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      const index = Math.abs(hash) % FALLBACK_PALETTES.length;
+      return FALLBACK_PALETTES[index];
+    }
+
+    /**
+     * Icône contextuelle selon la mission
+     */
+    function getTaskIcon(taskName) {
+      const lower = (taskName || '').toLowerCase();
+      if (lower.includes('table')) return '🍽️';
+      if (lower.includes('compost') || lower.includes('poubelle')) return '🗑️';
+      if (lower.includes('linge')) return '🧺';
+      if (lower.includes('courses')) return '🛒';
+      if (lower.includes('boite') || lower.includes('lettres') || lower.includes('courrier')) return '📬';
+      if (lower.includes('repas') || lower.includes('cuisine')) return '🍳';
+      if (lower.includes('poulailler')) return '🐔';
+      if (lower.includes('jardin')) return '🌿';
+      return '✨';
+    }
+
+    /**
+     * JEU DE DONNÉES INITIAL
+     */
+    const MOCK_DATA = {
+      success: true,
+      months: [
+        { key: '2026-09', year: 2026, month: 9, label: 'Septembre 2026' }
+      ],
+      children: ['Gaby', 'Nanon', 'Tom'],
+      tasks: [
+        { id: 1, mois: 9, year: 2026, jourNom: 'Mardi', dateIso: '2026-09-01', jourNum: 1, qui: 'Gaby', tache: 'Table Dîner' },
+        { id: 2, mois: 9, year: 2026, jourNom: 'Mardi', dateIso: '2026-09-01', jourNum: 1, qui: 'Gaby', tache: 'Vider compost' },
+        { id: 3, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-02', jourNum: 2, qui: 'Tom', tache: 'Table Dej' },
+        { id: 4, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-02', jourNum: 2, qui: 'Nanon', tache: 'Table Dîner' },
+        { id: 5, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-02', jourNum: 2, qui: 'Tom', tache: 'Linge' },
+        { id: 6, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-02', jourNum: 2, qui: 'Nanon', tache: 'Chercher les courses' },
+        { id: 7, mois: 9, year: 2026, jourNom: 'Jeudi', dateIso: '2026-09-03', jourNum: 3, qui: 'Gaby', tache: 'Table Dîner' },
+        { id: 8, mois: 9, year: 2026, jourNom: 'Jeudi', dateIso: '2026-09-03', jourNum: 3, qui: 'Gaby', tache: 'Boite aux lettres' },
+        { id: 9, mois: 9, year: 2026, jourNom: 'Vendredi', dateIso: '2026-09-04', jourNum: 4, qui: 'Tom', tache: 'Table Dîner' },
+        { id: 10, mois: 9, year: 2026, jourNom: 'Vendredi', dateIso: '2026-09-04', jourNum: 4, qui: 'Tom', tache: 'Préparer le repas' },
+        { id: 11, mois: 9, year: 2026, jourNom: 'Samedi', dateIso: '2026-09-05', jourNum: 5, qui: 'Nanon', tache: 'Table Dej' },
+        { id: 12, mois: 9, year: 2026, jourNom: 'Samedi', dateIso: '2026-09-05', jourNum: 5, qui: 'Gaby', tache: 'Table Dîner' },
+        { id: 13, mois: 9, year: 2026, jourNom: 'Samedi', dateIso: '2026-09-05', jourNum: 5, qui: 'Nanon', tache: 'Sortir poubelle' },
+        { id: 14, mois: 9, year: 2026, jourNom: 'Samedi', dateIso: '2026-09-05', jourNum: 5, qui: 'Gaby', tache: 'Boite aux lettres' },
+        { id: 15, mois: 9, year: 2026, jourNom: 'Dimanche', dateIso: '2026-09-06', jourNum: 6, qui: 'Tom', tache: 'Table Dej' },
+        { id: 16, mois: 9, year: 2026, jourNom: 'Dimanche', dateIso: '2026-09-06', jourNum: 6, qui: 'Tom', tache: 'Enlever bazar jardin' },
+        { id: 17, mois: 9, year: 2026, jourNom: 'Lundi', dateIso: '2026-09-07', jourNum: 7, qui: 'Tom', tache: 'Table Dîner' },
+        { id: 18, mois: 9, year: 2026, jourNom: 'Lundi', dateIso: '2026-09-07', jourNum: 7, qui: 'Tom', tache: 'Nettoyage poulailler' },
+        { id: 19, mois: 9, year: 2026, jourNom: 'Mardi', dateIso: '2026-09-08', jourNum: 8, qui: 'Nanon', tache: 'Table Dîner' },
+        { id: 20, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-09', jourNum: 9, qui: 'Gaby', tache: 'Table Dej' },
+        { id: 21, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-09', jourNum: 9, qui: 'Tom', tache: 'Table Dîner' },
+        { id: 22, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-09', jourNum: 9, qui: 'Gaby', tache: 'Boite aux lettres' },
+        { id: 23, mois: 9, year: 2026, jourNom: 'Jeudi', dateIso: '2026-09-10', jourNum: 10, qui: 'Nanon', tache: 'Table Dîner' },
+        { id: 24, mois: 9, year: 2026, jourNom: 'Jeudi', dateIso: '2026-09-10', jourNum: 10, qui: 'Nanon', tache: 'Table Dej' },
+        { id: 25, mois: 9, year: 2026, jourNom: 'Vendredi', dateIso: '2026-09-11', jourNum: 11, qui: 'Gaby', tache: 'Table Dîner' },
+        { id: 26, mois: 9, year: 2026, jourNom: 'Samedi', dateIso: '2026-09-12', jourNum: 12, qui: 'Tom', tache: 'Table Dej' },
+        { id: 27, mois: 9, year: 2026, jourNom: 'Dimanche', dateIso: '2026-09-13', jourNum: 13, qui: 'Nanon', tache: 'Vider compost' },
+        { id: 28, mois: 9, year: 2026, jourNom: 'Lundi', dateIso: '2026-09-14', jourNum: 14, qui: 'Gaby', tache: 'Sortir poubelle' },
+        { id: 29, mois: 9, year: 2026, jourNom: 'Mardi', dateIso: '2026-09-15', jourNum: 15, qui: 'Tom', tache: 'Table Dîner' },
+        { id: 30, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-16', jourNum: 16, qui: 'Nanon', tache: 'Table Dîner' },
+        { id: 31, mois: 9, year: 2026, jourNom: 'Jeudi', dateIso: '2026-09-17', jourNum: 17, qui: 'Gaby', tache: 'Table Dîner' },
+        { id: 32, mois: 9, year: 2026, jourNom: 'Vendredi', dateIso: '2026-09-18', jourNum: 18, qui: 'Tom', tache: 'Préparer le repas' },
+        { id: 33, mois: 9, year: 2026, jourNom: 'Samedi', dateIso: '2026-09-19', jourNum: 19, qui: 'Nanon', tache: 'Boite aux lettres' },
+        { id: 34, mois: 9, year: 2026, jourNom: 'Dimanche', dateIso: '2026-09-20', jourNum: 20, qui: 'Tom', tache: 'Nettoyage poulailler' },
+        { id: 35, mois: 9, year: 2026, jourNom: 'Lundi', dateIso: '2026-09-21', jourNum: 21, qui: 'Gaby', tache: 'Linge' },
+        { id: 36, mois: 9, year: 2026, jourNom: 'Mardi', dateIso: '2026-09-22', jourNum: 22, qui: 'Nanon', tache: 'Table Dej' },
+        { id: 37, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-23', jourNum: 23, qui: 'Tom', tache: 'Table Dîner' },
+        { id: 38, mois: 9, year: 2026, jourNom: 'Jeudi', dateIso: '2026-09-24', jourNum: 24, qui: 'Gaby', tache: 'Table Dej' },
+        { id: 39, mois: 9, year: 2026, jourNom: 'Vendredi', dateIso: '2026-09-25', jourNum: 25, qui: 'Nanon', tache: 'Table Dîner' },
+        { id: 40, mois: 9, year: 2026, jourNom: 'Samedi', dateIso: '2026-09-26', jourNum: 26, qui: 'Tom', tache: 'Chercher les courses' },
+        { id: 41, mois: 9, year: 2026, jourNom: 'Dimanche', dateIso: '2026-09-27', jourNum: 27, qui: 'Gaby', tache: 'Enlever bazar jardin' },
+        { id: 42, mois: 9, year: 2026, jourNom: 'Lundi', dateIso: '2026-09-28', jourNum: 28, qui: 'Nanon', tache: 'Vider compost' },
+        { id: 43, mois: 9, year: 2026, jourNom: 'Mardi', dateIso: '2026-09-29', jourNum: 29, qui: 'Tom', tache: 'Table Dîner' },
+        { id: 44, mois: 9, year: 2026, jourNom: 'Mercredi', dateIso: '2026-09-30', jourNum: 30, qui: 'Gaby', tache: 'Table Dîner' }
+      ]
+    };
+
+    // État applicatif
+    let appState = {
+      allTasks: [],
+      months: [],
+      children: [],
+      selectedMonthKey: '',
+      // Sur mobile : 'agenda' par défaut (scrollé sur aujourd'hui), ou 'grid'
+      mobileMode: 'agenda',
+      selectedDayNumber: (new Date()).getDate()
+    };
+
+    /**
+     * Initialisation au chargement de la page
+     */
+    window.addEventListener('DOMContentLoaded', () => {
+      // Mode Agenda actif par défaut sur écran mobile
+      if (window.innerWidth < 640) {
+        appState.mobileMode = 'agenda';
+        updateMobileModeButtons();
+      }
+      loadData();
+    });
+
+    // Gestion du redimensionnement de l'écran
+    window.addEventListener('resize', () => {
+      renderAll();
+    });
+
+    function loadData() {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        showToast('Connexion au Google Sheet...');
+        google.script.run
+          .withSuccessHandler(onDataReceived)
+          .withFailureHandler(onDataError)
+          .getFamilyTasksData();
+      } else {
+        onDataReceived(MOCK_DATA);
+      }
+    }
+
+    function refreshData() {
+      const icon = document.getElementById('refreshIcon');
+      if (icon) icon.classList.add('animate-spin');
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (icon) icon.classList.remove('animate-spin');
+            onDataReceived(res);
+            showToast('✅ Synchronisé avec succès !');
+          })
+          .withFailureHandler((err) => {
+            if (icon) icon.classList.remove('animate-spin');
+            onDataError(err);
+          })
+          .getFamilyTasksData();
+      } else {
+        setTimeout(() => {
+          if (icon) icon.classList.remove('animate-spin');
+          onDataReceived(MOCK_DATA);
+          showToast('✅ Données rafraîchies');
+        }, 300);
+      }
+    }
+
+    function onDataReceived(response) {
+      if (!response || !response.success) {
+        onDataError(response ? response.error : 'Erreur inconnue');
+        return;
+      }
+
+      appState.allTasks = response.tasks || [];
+      appState.months = response.months || [];
+      appState.children = response.children || [];
+
+      // Déterminer le mois à sélectionner
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const hasCurrent = appState.months.some(m => m.key === currentMonthKey);
+
+      if (hasCurrent) {
+        appState.selectedMonthKey = currentMonthKey;
+        appState.selectedDayNumber = now.getDate();
+      } else if (appState.months.length > 0) {
+        appState.selectedMonthKey = appState.months[0].key;
+        // Si le jour actuel existe dans ce mois, le garder, sinon premier jour
+        const [y, m] = appState.selectedMonthKey.split('-').map(Number);
+        const daysInSel = new Date(y, m, 0).getDate();
+        appState.selectedDayNumber = Math.min(now.getDate(), daysInSel);
+      } else {
+        appState.selectedMonthKey = '2026-09';
+        appState.selectedDayNumber = Math.min(now.getDate(), 30);
+      }
+
+      setupMonthSelector();
+      setupLegends();
+      renderAll();
+
+      // Scroll automatique immédiat vers aujourd'hui dès le chargement des données
+      setTimeout(scrollToToday, 200);
+    }
+
+    function onDataError(error) {
+      console.error('Erreur Apps Script:', error);
+      showToast('❌ Erreur : ' + error);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('statusToast');
+      const msg = document.getElementById('statusToastMsg');
+      if (!toast || !msg) return;
+      msg.textContent = message;
+      toast.classList.remove('translate-y-12', 'opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        toast.classList.add('translate-y-12', 'opacity-0', 'pointer-events-none');
+      }, 3000);
+    }
+
+    function setMobileMode(mode) {
+      appState.mobileMode = mode;
+      updateMobileModeButtons();
+      renderAll();
+      if (mode === 'agenda') {
+        setTimeout(scrollToToday, 100);
+      }
+    }
+
+    function updateMobileModeButtons() {
+      const btnGrid = document.getElementById('btnMobCal');
+      const btnAgenda = document.getElementById('btnMobList');
+      if (!btnGrid || !btnAgenda) return;
+
+      const activeClass = 'px-2.5 py-1 rounded-md bg-white text-indigo-600 shadow-xs font-bold transition-all';
+      const inactiveClass = 'px-2.5 py-1 rounded-md text-slate-600 font-semibold transition-all';
+
+      if (appState.mobileMode === 'agenda') {
+        btnAgenda.className = activeClass;
+        btnGrid.className = inactiveClass;
+      } else {
+        btnGrid.className = activeClass;
+        btnAgenda.className = inactiveClass;
+      }
+    }
+
+    function handleJumpTodayClick() {
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Si le mois en cours est disponible et différent, y basculer
+      if (appState.months.some(m => m.key === currentMonthKey) && appState.selectedMonthKey !== currentMonthKey) {
+        appState.selectedMonthKey = currentMonthKey;
+        const select = document.getElementById('monthSelect');
+        if (select) select.value = currentMonthKey;
+        renderAll();
+      }
+
+      setTimeout(scrollToToday, 150);
+    }
+
+    function scrollToToday() {
+      // Priorité à la carte aujourd'hui dans la vue active (Agenda sur mobile ou Calendrier sur desktop)
+      const target = (window.innerWidth < 640 && appState.mobileMode === 'agenda')
+        ? document.querySelector('#viewMobileAgenda [data-is-today="true"]')
+        : (document.querySelector('.today-highlight') || document.querySelector('[data-is-today="true"]'));
+
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        showToast('Le jour actuel n\'est pas dans ce mois.');
+      }
+    }
+
+    function changeMonth(monthKey) {
+      appState.selectedMonthKey = monthKey;
+      const [yearStr, monthStr] = monthKey.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+      const maxDays = new Date(year, month, 0).getDate();
+
+      // Ajuster le jour sélectionné si hors limites
+      if (appState.selectedDayNumber > maxDays) {
+        appState.selectedDayNumber = maxDays;
+      }
+      renderAll();
+    }
+
+    function changeMobileDay(offset) {
+      const [yearStr, monthStr] = (appState.selectedMonthKey || '2026-09').split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      let targetDay = appState.selectedDayNumber + offset;
+      if (targetDay >= 1 && targetDay <= daysInMonth) {
+        appState.selectedDayNumber = targetDay;
+        renderMobileTodayView();
+      } else {
+        showToast(offset > 0 ? 'Fin du mois atteinte' : 'Début du mois atteint');
+      }
+    }
+
+    function selectMobileDay(dayNum) {
+      appState.selectedDayNumber = dayNum;
+      renderMobileTodayView();
+    }
+
+    function getMonthName(monthNumber) {
+      const names = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      return names[monthNumber - 1] || '';
+    }
+
+    function setupMonthSelector() {
+      const select = document.getElementById('monthSelect');
+      if (!select) return;
+      select.innerHTML = '';
+
+      if (appState.months.length === 0) {
+        select.innerHTML = '<option value="2026-09">Septembre 2026</option>';
+        return;
+      }
+
+      appState.months.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.key;
+        opt.textContent = m.label;
+        if (m.key === appState.selectedMonthKey) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function setupLegends() {
+      const screenLegend = document.getElementById('screenLegend');
+      if (screenLegend) screenLegend.innerHTML = '';
+
+      appState.children.forEach(child => {
+        const style = getChildStyle(child);
+        if (screenLegend) {
+          const screenItem = document.createElement('div');
+          screenItem.className = 'flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 text-slate-700';
+          screenItem.innerHTML = `<span class="w-2 h-2 rounded-full inline-block" style="background-color: ${style.hex}"></span><span>${child}</span>`;
+          screenLegend.appendChild(screenItem);
+        }
+      });
+    }
+
+    function renderAll() {
+      const [yearStr, monthStr] = (appState.selectedMonthKey || '2026-09').split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+
+      const today = new Date();
+      const isCurrentYearMonth = (today.getFullYear() === year && (today.getMonth() + 1) === month);
+      const todayDayNumber = isCurrentYearMonth ? today.getDate() : -1;
+
+      // Actualisation bouton Aujourd'hui
+      const btnJump = document.getElementById('btnJumpToday');
+      if (btnJump) {
+        if (isCurrentYearMonth) {
+          btnJump.classList.remove('opacity-40');
+        } else {
+          btnJump.classList.add('opacity-40');
+        }
+      }
+
+      // Tâches du mois
+      const monthTasks = appState.allTasks.filter(t => t.year === year && t.mois === month);
+
+      // Toujours générer le calendrier mensuel pour que l'impression soit toujours opérationnelle
+      renderCalendarView(year, month, monthTasks, todayDayNumber);
+
+      const vCal = document.getElementById('viewCalendar');
+      const vAgenda = document.getElementById('viewMobileAgenda');
+
+      if (window.innerWidth < 640) {
+        // Sur smartphone : soit Agenda (par défaut), soit Grille
+        if (appState.mobileMode === 'agenda') {
+          if (vCal) vCal.classList.add('hidden');
+          if (vAgenda) vAgenda.classList.remove('hidden');
+          renderMobileAgenda(year, month, monthTasks, todayDayNumber);
+        } else {
+          if (vCal) vCal.classList.remove('hidden');
+          if (vAgenda) vAgenda.classList.add('hidden');
+        }
+      } else {
+        // Grand écran / Bureau : Grille toujours visible
+        if (vCal) vCal.classList.remove('hidden');
+        if (vAgenda) vAgenda.classList.add('hidden');
+      }
+    }
+
+    /**
+     * VUE MOBILE PAR DÉFAUT : LA LISTE DU JOUR
+     * Affiche directement les tâches du jour avec navigation d'un jour à l'autre
+     */
+    function renderMobileTodayView() {
+      const container = document.getElementById('viewMobileToday');
+      if (!container) return;
+
+      const [yearStr, monthStr] = (appState.selectedMonthKey || '2026-09').split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      const dayNum = appState.selectedDayNumber || 1;
+      const dayDate = new Date(year, month - 1, dayNum);
+      const dayOfWeek = dayDate.getDay();
+
+      const now = new Date();
+      const isActualToday = (now.getFullYear() === year && (now.getMonth() + 1) === month && now.getDate() === dayNum);
+
+      const jourNomsComplets = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+      const jourNom = jourNomsComplets[dayOfWeek];
+      const moisNom = getMonthName(month);
+
+      // Tâches du jour ciblé
+      const dayTasks = appState.allTasks.filter(t => t.year === year && t.mois === month && (t.jourNum === dayNum));
+
+      // Calcul des stats rapides par enfant
+      const countsByChild = {};
+      dayTasks.forEach(t => {
+        countsByChild[t.qui] = (countsByChild[t.qui] || 0) + 1;
+      });
+
+      // Construction du bandeau défilant des jours proches pour zapper facilement
+      let daysPillsHtml = '';
+      for (let offset = -3; offset <= 3; offset++) {
+        const d = dayNum + offset;
+        if (d >= 1 && d <= daysInMonth) {
+          const pillDate = new Date(year, month - 1, d);
+          const pDayOfWeek = pillDate.getDay();
+          const pShortName = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][pDayOfWeek];
+          const isSelected = (d === dayNum);
+          const isTodayPill = (now.getFullYear() === year && (now.getMonth() + 1) === month && now.getDate() === d);
+
+          daysPillsHtml += `
+            <button onclick="selectMobileDay(${d})" class="flex flex-col items-center justify-center py-1.5 px-2.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+              isSelected 
+                ? 'bg-indigo-600 text-white shadow-md font-bold scale-105 ring-2 ring-indigo-300' 
+                : (isTodayPill ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'bg-white text-slate-700 border border-slate-200')
+            }">
+              <span class="text-[10px] uppercase font-bold tracking-tight">${pShortName}</span>
+              <span class="text-sm font-black leading-tight">${d}</span>
+              ${isTodayPill && !isSelected ? '<span class="w-1.5 h-1.5 rounded-full bg-indigo-600 mt-0.5"></span>' : '<span class="w-1.5 h-1.5 opacity-0"></span>'}
+            </button>
+          `;
+        }
+      }
+
+      // Construction de la liste des tâches
+      let tasksHtml = '';
+      if (dayTasks.length === 0) {
+        tasksHtml = `
+          <div class="bg-white rounded-2xl p-6 text-center border border-slate-200 shadow-xs">
+            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">
+              ✨
+            </div>
+            <p class="font-bold text-slate-800 text-sm">Aucune tâche assignée</p>
+            <p class="text-xs text-slate-400 mt-1">Profitez de cette journée libre !</p>
+          </div>
+        `;
+      } else {
+        tasksHtml = `<div class="space-y-2">`;
+        dayTasks.forEach(t => {
+          const style = getChildStyle(t.qui);
+          const icon = getTaskIcon(t.tache);
+
+          tasksHtml += `
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-white border ${style.border} shadow-2xs hover:shadow-sm transition-all">
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="w-9 h-9 rounded-xl flex items-center justify-center text-lg ${style.bg} shrink-0 border ${style.border}">
+                  ${icon}
+                </span>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-black px-2 py-0.5 rounded-full ${style.badge}">
+                      ${t.qui}
+                    </span>
+                  </div>
+                  <div class="text-sm font-bold text-slate-800 truncate mt-0.5">
+                    ${t.tache}
+                  </div>
+                </div>
+              </div>
+              <div class="shrink-0 pl-2">
+                <span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: ${style.hex}"></span>
+              </div>
+            </div>
+          `;
+        });
+        tasksHtml += `</div>`;
+      }
+
+      // Synthèse par enfant pour la journée
+      let summaryBadgesHtml = '';
+      Object.keys(countsByChild).forEach(child => {
+        const style = getChildStyle(child);
+        summaryBadgesHtml += `
+          <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg ${style.bg} ${style.text} border ${style.border}">
+            <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${style.hex}"></span>
+            <span>${child}</span>
+            <span class="bg-white/80 px-1 rounded font-black text-[10px]">${countsByChild[child]}</span>
+          </span>
+        `;
+      });
+
+      container.innerHTML = `
+        <!-- Carte d'en-tête du jour sélectionné -->
+        <div class="bg-gradient-to-br from-indigo-700 via-indigo-600 to-indigo-800 text-white rounded-2xl p-4 shadow-md">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">📋</span>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-200">${jourNom}</span>
+                  ${isActualToday ? '<span class="bg-white text-indigo-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-2xs">Aujourd\'hui</span>' : ''}
+                </div>
+                <h2 class="text-lg font-black leading-tight">${dayNum} ${moisNom} ${year}</h2>
+              </div>
+            </div>
+
+            <!-- Navigation jour précédent / suivant -->
+            <div class="flex items-center gap-1 bg-white/10 p-1 rounded-xl backdrop-blur-xs border border-white/20">
+              <button onclick="changeMobileDay(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all font-black text-sm" title="Jour précédent">‹</button>
+              <button onclick="changeMobileDay(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 active:scale-90 transition-all font-black text-sm" title="Jour suivant">›</button>
+            </div>
+          </div>
+
+          <!-- Mini synthèse -->
+          <div class="flex items-center justify-between pt-2 border-t border-indigo-500/40 text-xs font-medium text-indigo-100">
+            <span>${dayTasks.length} mission${dayTasks.length > 1 ? 's' : ''} prévue${dayTasks.length > 1 ? 's' : ''}</span>
+            <div class="flex items-center gap-1.5">
+              ${dayTasks.length > 0 ? '✨ Prêts pour la journée' : '🎉 Journée calme'}
+            </div>
+          </div>
+        </div>
+
+        <!-- Raccourci carrousel de jours -->
+        <div class="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 no-scrollbar">
+          ${daysPillsHtml}
+        </div>
+
+        <!-- Badges d'enfants actifs ce jour -->
+        ${summaryBadgesHtml ? `<div class="flex flex-wrap items-center gap-1.5 px-0.5">${summaryBadgesHtml}</div>` : ''}
+
+        <!-- Liste des missions du jour -->
+        <div class="pt-1">
+          <div class="flex items-center justify-between mb-2 px-1">
+            <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Missions assignées</h3>
+            <span class="text-xs font-bold text-slate-400">${dayTasks.length} au total</span>
+          </div>
+          ${tasksHtml}
+        </div>
+      `;
+    }
+
+    function renderCalendarView(year, month, tasks, todayDayNumber) {
+      const grid = document.getElementById('calendarGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const firstDayDate = new Date(year, month - 1, 1);
+      let startingDay = firstDayDate.getDay(); 
+      startingDay = (startingDay === 0) ? 6 : startingDay - 1;
+
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      const tasksByDay = {};
+      tasks.forEach(t => {
+        const d = t.jourNum || 1;
+        if (!tasksByDay[d]) tasksByDay[d] = [];
+        tasksByDay[d].push(t);
+      });
+
+      // Cases vides avant le 1er du mois
+      for (let i = 0; i < startingDay; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'cal-cell min-h-[75px] sm:min-h-[90px] p-1.5 bg-slate-50/40 rounded-xl border border-dashed border-slate-200 hidden sm:block';
+        grid.appendChild(emptyCell);
+      }
+
+      // Cases pour chaque jour du mois
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayDate = new Date(year, month - 1, day);
+        const dayOfWeek = dayDate.getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+        const dayTasks = tasksByDay[day] || [];
+        const isToday = (day === todayDayNumber);
+
+        const cell = document.createElement('div');
+        cell.setAttribute('data-is-today', isToday ? 'true' : 'false');
+        cell.className = `cal-cell min-h-[75px] sm:min-h-[90px] p-1 sm:p-2 rounded-xl border flex flex-col justify-between transition-all relative ${
+          isToday ? 'today-highlight z-10' : (isWeekend ? 'bg-amber-50/25 border-amber-200/80' : 'bg-white border-slate-200')
+        }`;
+
+        const jourNomsCourts = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+        const header = document.createElement('div');
+        header.className = 'cal-cell-header flex items-center justify-between mb-1 pb-0.5 border-b border-slate-100';
+        
+        header.innerHTML = `
+          <div class="flex items-center gap-1">
+            <span class="sm:hidden text-[9px] font-semibold text-slate-400 uppercase">${jourNomsCourts[dayOfWeek]}</span>
+            <span class="text-xs sm:text-sm font-black ${isToday ? 'text-indigo-600 font-extrabold print:text-slate-800' : (isWeekend ? 'text-amber-900' : 'text-slate-800')}">${day}</span>
+            ${isToday ? `<span class="today-badge bg-indigo-600 text-white text-[8px] sm:text-[9px] font-black uppercase px-1 rounded sm:tracking-wide">Auj.</span>` : ''}
+          </div>
+          ${dayTasks.length > 0 ? `<span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full ${isToday ? 'bg-indigo-100 text-indigo-800 print:bg-slate-100 print:text-slate-600' : (isWeekend ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600')}">${dayTasks.length}</span>` : ''}
+        `;
+        cell.appendChild(header);
+
+        const taskList = document.createElement('div');
+        taskList.className = 'cal-cell-content space-y-1 overflow-y-auto flex-1 max-h-[160px] pr-0.5';
+
+        if (dayTasks.length === 0) {
+          taskList.innerHTML = `<span class="text-[9px] text-slate-300 italic block py-0.5 text-center no-print">-</span>`;
+        } else {
+          dayTasks.forEach(t => {
+            const style = getChildStyle(t.qui);
+
+            const item = document.createElement('div');
+            item.className = `cal-task-item rounded-md p-1 border text-xs flex items-center gap-1 sm:gap-1.5 ${style.bg} ${style.border}`;
+
+            item.innerHTML = `
+              <span class="inline-block w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${style.hex}"></span>
+              <div class="flex-1 min-w-0 leading-tight">
+                <span class="font-extrabold text-[9px] sm:text-[10px] ${style.text} mr-1">${t.qui}</span>
+                <span class="text-[9.5px] sm:text-[10.5px] font-medium text-slate-800">${t.tache}</span>
+              </div>
+            `;
+            taskList.appendChild(item);
+          });
+        }
+
+        cell.appendChild(taskList);
+        grid.appendChild(cell);
+      }
+    }
+
+    function renderMobileAgenda(year, month, tasks, todayDayNumber) {
+      const container = document.getElementById('viewMobileAgenda');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const tasksByDay = {};
+      tasks.forEach(t => {
+        const d = t.jourNum || 1;
+        if (!tasksByDay[d]) tasksByDay[d] = [];
+        tasksByDay[d].push(t);
+      });
+
+      const jourNomsComplets = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayDate = new Date(year, month - 1, day);
+        const dayOfWeek = dayDate.getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+        const dayTasks = tasksByDay[day] || [];
+        const isToday = (day === todayDayNumber);
+
+        const card = document.createElement('div');
+        card.setAttribute('data-is-today', isToday ? 'true' : 'false');
+        // scroll-mt-16 permet au scroll de s'arrêter juste en-dessous de l'en-tête sticky
+        card.className = `p-3 rounded-2xl border transition-all scroll-mt-16 ${
+          isToday 
+            ? 'border-2 border-indigo-600 bg-gradient-to-br from-indigo-50/70 via-white to-indigo-50/30 shadow-md ring-2 ring-indigo-200' 
+            : (isWeekend ? 'bg-amber-50/30 border-amber-200/90' : 'bg-white border-slate-200 shadow-2xs')
+        }`;
+
+        let tasksHtml = '';
+        if (dayTasks.length === 0) {
+          tasksHtml = `
+            <div class="text-xs text-slate-400 italic py-1.5 px-2 bg-slate-50/70 rounded-xl flex items-center gap-1.5">
+              <span>✨</span>
+              <span>Aucune tâche programmée</span>
+            </div>
+          `;
+        } else {
+          dayTasks.forEach(t => {
+            const style = getChildStyle(t.qui);
+            const icon = getTaskIcon(t.tache);
+            tasksHtml += `
+              <div class="flex items-center justify-between p-2.5 rounded-xl border ${style.bg} ${style.border} shadow-2xs">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="w-7 h-7 rounded-lg flex items-center justify-center text-sm bg-white shrink-0 border ${style.border}">
+                    ${icon}
+                  </span>
+                  <div class="min-w-0">
+                    <span class="inline-block text-[11px] font-black px-1.5 py-0.5 rounded-md ${style.badge} mr-1.5">
+                      ${t.qui}
+                    </span>
+                    <span class="text-xs font-bold text-slate-800">
+                      ${t.tache}
+                    </span>
+                  </div>
+                </div>
+                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${style.hex}"></span>
+              </div>
+            `;
+          });
+        }
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between pb-2 mb-2 border-b ${isToday ? 'border-indigo-200' : 'border-slate-100'}">
+            <div class="flex items-center gap-2">
+              <span class="w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm ${
+                isToday ? 'bg-indigo-600 text-white shadow-xs' : (isWeekend ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-800')
+              }">${day}</span>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs font-extrabold capitalize ${isToday ? 'text-indigo-700 font-black' : 'text-slate-700'}">${jourNomsComplets[dayOfWeek]}</span>
+                  ${isToday ? `<span class="bg-indigo-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-2xs">Aujourd'hui</span>` : ''}
+                </div>
+              </div>
+            </div>
+            ${dayTasks.length > 0 ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isToday ? 'bg-indigo-100 text-indigo-700 font-extrabold' : 'bg-slate-100 text-slate-600'}">${dayTasks.length} tâche${dayTasks.length > 1 ? 's' : ''}</span>` : ''}
+          </div>
+          <div class="space-y-1.5">
+            ${tasksHtml}
+          </div>
+        `;
+
+        container.appendChild(card);
+      }
+    }
+  </script>
+</body>
+</html>
